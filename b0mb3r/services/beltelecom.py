@@ -1,9 +1,9 @@
 from b0mb3r.services.service import Service
 
 
-class MyGames(Service):
+class Beltelecom(Service):
     async def run(self):
         await self.post(
-            "https://account.my.games/signup_send_sms/",
+            "https://myapi.beltelecom.by/api/v1/auth/check-phone?lang=ru",
             data={"phone": self.formatted_phone},
         )

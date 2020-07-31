@@ -1,11 +1,11 @@
 from b0mb3r.services.service import Service
 
 
-class LimeTaxi(Service):
+class Taxi310(Service):
     phone_codes = [380]
 
     async def run(self):
         await self.post(
-            "http://212.22.223.149:7200/api/account/register/sendConfirmCode",
+            "http://62.149.7.19:7200/api/account/register/sendConfirmCode",
             json={"phone": self.phone},
         )

